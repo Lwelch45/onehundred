@@ -137,39 +137,72 @@ object onehundred extends App {
     If a list contains repeated elements they should be placed in separate sublists.
     Example:
 
-    scala> pack(List('a, 'a, 'a, 'a, 'b, 'c, 'c, 'a, 'a, 'd, 'e, 'e, 'e, 'e))
+    scala>
     res0: List[List[Symbol]] = List(List('a, 'a, 'a, 'a), List('b), List('c, 'c), List('a, 'a), List('d), List('e, 'e, 'e, 'e))
   */
 
-  // hitting the limits of pattern matching pretty hard here
-  // hrmmm...the real solution just uses span which makes it easy. how would i handle this stacking of Lists?
-  def pack[T](lst: List[T]): List[Any] = lst match {
-      case Nil => lst
-      case (x: List[T]) :: (xs: List[T]) :: Nil if xs.isEmpty => x
-      case (x: T) :: (y: T) :: xs if x == y => {println(lst, "here1"); pack(List(List(x,y), xs)) }
-      case (x: List[T]) :: (xs: List[T]) :: _ if x.last == xs.head => {println(lst, "here2");pack(List(x ++ List(xs.head), xs.tail))}
-      case (x: List[T]) :: (xs: List[T]) :: _ => {println(lst, "here3");List(x, pack(xs))}
-      case (x: T) :: (xs: List[T]) :: _ => {println(lst, "here4");List(List(x), pack(xs))}
-      case (x: T) :: (y: T) :: xs => {println(lst, "here5"); List(List(x), pack(y :: xs)) }
-      case _ => throw new NoSuchFieldException()
+  def pack[T](lst: List[T]): List[List[T]] = lst match {
+    case Nil => Nil
+    case h :: t => {
+      val (spanned, rest) = lst.span(elm => elm == h)
+      spanned :: pack(rest)
     }
-
   }
 
-  /* ---------------------- */
-  val lst: List[Int] = 1 until 10 toList
-  val lst2: List[List[Int]] = List(1 to 10 toList, 11 to 20 toList)
-  val lst_compress: List[Char] = List('a', 'a', 'a', 'a', 'b', 'c', 'c', 'a', 'a', 'd', 'e', 'e', 'e')
+  /* P10: Run-length encoding of a list.
+      Use the result of problem P09 to implement the so-called run-length encoding data compression method. Consecutive duplicates of elements are encoded as tuples (N, E) where N is the number of duplicates of the element E.
+      Example:
 
-//  utils.time { println(last(lst)) }
-//  utils.time { println(penultimate(lst)) }
-//  utils.time { println(nth(3, lst)) }
-//  utils.time { println(length(lst)) }
-//  utils.time { println(reverse(lst))}
-//  utils.time { println(isPalindrome(List(1,2,3,2,1)))}
-//  utils.time { println(flatten(lst2)) }
-//  utils.time { println(compress(lst_compress)) }
-  utils.time { println(pack(lst_compress)) }
+      scala> encode(List('a, 'a, 'a, 'a, 'b, 'c, 'c, 'a, 'a, 'd, 'e, 'e, 'e, 'e))
+      res0: List[(Int, Symbol)] = List((4,'a), (1,'b), (2,'c), (2,'a), (1,'d), (4,'e)) */
+
+  def encode[T](lst: List[T]): List[(Int,T)] = {
+    pack(lst).map(sublist => (sublist.size,sublist.head))
+  }
+
+  /* P11: Modified run-length encoding.
+    Modify the result of problem P10 in such a way that if an element has no duplicates it is simply copied into the result list. Only elements with duplicates are transferred as (N, E) terms.
+    Example:
+
+    scala> encodeModified(List('a, 'a, 'a, 'a, 'b, 'c, 'c, 'a, 'a, 'd, 'e, 'e, 'e, 'e))
+    res0: List[Any] = List((4,'a), 'b, (2,'c), (2,'a), 'd, (4,'e)) */
+
+  def encodeModified[T](lst: List[T]): List[Any] = {
+    encode(lst).map {
+      case (n,elm) if n == 1 => elm
+      case a => a
+    }
+  }
+
+  /* P12: Decode a run-length encoded list.
+      Given a run-length code list generated as specified in problem P10, construct its uncompressed version.
+      Example:
+
+      scala> decode(List((4, 'a), (1, 'b), (2, 'c), (2, 'a), (1, 'd), (4, 'e)))
+      res0: List[Symbol] = List('a, 'a, 'a, 'a, 'b, 'c, 'c, 'a, 'a, 'd, 'e, 'e, 'e, 'e) */
+
+  def decode[T](lst: List[(Int,T)]): List[Any] = {
+    lst.flatMap(enc => { for {i <- 0 until enc._1} yield enc._2})
+  }
+
+
+  /* P13: Run-length encoding of a list (direct solution).
+    Implement the so-called run-length encoding data compression method directly. I.e. don't use other methods you've written (like P09's pack); do all the work directly.
+    Example:
+
+    scala> encodeDirect(List('a, 'a, 'a, 'a, 'b, 'c, 'c, 'a, 'a, 'd, 'e, 'e, 'e, 'e))
+    res0: List[(Int, Symbol)] = List((4,'a), (1,'b), (2,'c), (2,'a), (1,'d), (4,'e)) */
+
+  def encodeDirect[T](lst: List[T]): List[(Int,T)] = {
+    def encodeDirectIter[T](lst: List[T], cnt: Int, elm: T): List[(Int,T)] = {
+      lst match {
+        case Nil => Nil
+        case h :: t if h == elm => encodeDirectIter(t, cnt + 1, elm)
+        case h :: t => (cnt,elm) :: encodeDirectIter(t, 1, h)
+      }
+    }
+    encodeDirectIter(lst.tail,1,lst.head)
+  }
 
 }
 
@@ -182,7 +215,4 @@ object utils {
     println("Elapsed time: " + (t1 - t0) + "ns\n")
     result
   }
-
-  // Runtime.getRuntime().totalMemory();
-
 }
